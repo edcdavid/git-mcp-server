@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: git-mcp-server
+  namespace: openshift-lightspeed
+  labels:
+    app: git-mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: git-mcp-server
+  template:
+    metadata:
+      labels:
+        app: git-mcp-server
+    spec:
+      containers:
+      - name: git-mcp-server
+        image: image-registry.openshift-image-registry.svc:5000/openshift-lightspeed/git-mcp-server:latest
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: REPOS_DIR
+          value: /repos
+        volumeMounts:
+        - name: repos
+          mountPath: /repos
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+      volumes:
+      - name: repos
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: git-mcp-server
+  namespace: openshift-lightspeed
+  labels:
+    app: git-mcp-server
+spec:
+  selector:
+    app: git-mcp-server
+  ports:
+  - port: 8080
+    targetPort: http
+    protocol: TCP
+    name: http
+  type: ClusterIP
